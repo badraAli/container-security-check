@@ -1,2 +1,3 @@
 fraudapi/
 *.service
+.env
