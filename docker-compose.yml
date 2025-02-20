@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres_container
+    environment:
+      - POSTGRES_USER: postgres
+      - POSTGRES_PASSWORD: password
+      - POSTGRES_DB: api_fraude_db
+    ports: 
+      - "5432:5432"
+    volumes:
+      - postgres_data: /var/lib/postgresql/data
+    networks:
+      - security_app_network
+
+  pg_admin:
+    image: dpage/pgadmin4
+    container_name: pg_admin_container
+    environment:
+      - PGADMIN_DEFAULT_EMAIL: badra@gmail.com
+      - PGADMIN_DEFAULT_PASSWORD: password
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+    networks:
+      - security_app_network
+
+  app:
+    build: .
+    container_name: security_app
+    ports:
+      - "5556:5000"
+    environment:
+      - DATABASE_NAME: api_fraude_db
+      - DATABASE_USER: postgres
+      - PASSWORD: password
+      - HOST: postgres
+      - PORT: 5432
+    depends_on:
+      - postgres
+    networks:
+      - security_app_network
+
+volumes:
+  postgres_data:
+
+networks:
+  security_app_network:
