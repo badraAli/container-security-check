@@ -8,6 +8,7 @@ import os
 import boto3
 import watchtower
 import time
+import json
 
 load_dotenv()  # Charge les variables d'environnement du fichier .env
 
@@ -37,19 +38,21 @@ WHITELIST = {"+2250123456789", "+2259876543210"}
 # Configuration des logs CloudWatch
 client = boto3.client('logs', region_name='us-east-1')  # Remplacez par votre région AWS
 LOG_GROUP = '/flask/app-logs'
-LOG_STREAM = 'business-log'
+LOG_STREAM = 'fraud-business-log'
 
 # Créer un logger pour les logs métier
-def log_to_cloudwatch(message, level='info'):
-
-    # Ajouter le niveau de log au message
-    formatted_message = f"[{level.upper()}] {message}"
+def log_to_cloudwatch(message):
 
     # Envoyer le log à CloudWatch
     client.put_log_events(
         logGroupName=LOG_GROUP,
         logStreamName=LOG_STREAM,
-        logEvents=[{'timestamp': int(time.time() * 1000), 'message': formatted_message}]
+        logEvents=[
+            {
+                'timestamp': int(time.time() * 1000), 
+                'message': message
+            }
+        ]
     )
 
 # Configuration des logs
@@ -63,48 +66,147 @@ def get_db_connection():
 @app.route('/transaction', methods=['POST'])
 def create_transaction():
     data = request.get_json()
-    logger.info(f"Requête reçue : {data}")
-    #log_to_cloudwatch(f"Requête reçue : {data}", level='info')
-
+    
     client_phone = data['client_phone']
     amount = data['amount']
+    
+    log_data = {
+        "context": "Fraud service",
+        "level": "info",
+        "message": {
+            "amount": amount,
+            "client_phone": client_phone,
+            "event": "Requête reçue"
+        }
+    }
+
+    # Envoyer le log JSON à CloudWatch
+    log_to_cloudwatch(json.dumps(log_data))
+    
+    
+    #logger.info(f"Requête reçue : {data}")
+    #log_to_cloudwatch(f"Requête reçue : {data}", level='info')
 
     # Vérifier si le numéro est dans la whitelist
     if client_phone in WHITELIST:
-        logger.info(f"Numéro {client_phone} dans la whitelist, règles de gestion ignorées.")
+        #logger.info(f"Numéro {client_phone} dans la whitelist, règles de gestion ignorées.")
         #log_to_cloudwatch(f"Numéro {client_phone} dans la whitelist, règles de gestion ignorées.", level='info')
+        
+        log_data = {
+            "context": "Fraud service",
+            "level": "info",
+            "message": {
+                "amount": amount,
+                "client_phone": client_phone,
+                "event": "règles de gestion ignorées"
+            }
+        }
+
+        # Envoyer le log JSON à CloudWatch
+        log_to_cloudwatch(json.dumps(log_data))
+        
         return process_transaction(data)
 
     # Vérifier si le numéro est blacklisté
     if is_blacklisted(client_phone):
-        logger.warning(f"Numéro {client_phone} est blacklisté.")
+        #logger.warning(f"Numéro {client_phone} est blacklisté.")
         #log_to_cloudwatch(f"Numéro {client_phone} est blacklisté.", level='warn')
+        
+        log_data = {
+            "context": "Fraud service",
+            "level": "WARN",
+            "message": {
+                "amount": amount,
+                "client_phone": client_phone,
+                "event": "numéro blacklisté"
+            }
+        }
+
+        # Envoyer le log JSON à CloudWatch
+        log_to_cloudwatch(json.dumps(log_data))
+        
         return jsonify({"error": "Numéro blacklisté pendant 30 minutes"}), 403
 
     # Vérifier le nombre de requêtes dans les 5 dernières minutes
     if not check_request_limit(client_phone):
-        logger.warning(f"Numéro {client_phone} a dépassé la limite de 3 requêtes en 5 minutes.")
+        #logger.warning(f"Numéro {client_phone} a dépassé la limite de 3 requêtes en 5 minutes.")
         #log_to_cloudwatch(f"Numéro {client_phone} a dépassé la limite de 3 requêtes en 5 minutes.", level='warn')
+        
+        log_data = {
+            "context": "Fraud service",
+            "level": "WARN",
+            "message": {
+                "amount": amount,
+                "client_phone": client_phone,
+                "event": "limite de 3 requêtes en 5 minutes atteinte"
+            }
+        }
+
+        # Envoyer le log JSON à CloudWatch
+        log_to_cloudwatch(json.dumps(log_data))
+        
         blacklist_number(client_phone)
         return jsonify({"error": "Limite de 3 requêtes en 5 minutes atteinte, numéro blacklisté pendant 30 minutes"}), 429
 
     # Appliquer les règles de gestion
     if not check_daily_limit(client_phone, amount):
-        logger.warning(f"Limite quotidienne dépassée pour le numéro {client_phone}.")
+        #logger.warning(f"Limite quotidienne dépassée pour le numéro {client_phone}.")
         #log_to_cloudwatch(f"Limite quotidienne dépassée pour le numéro {client_phone}.", level='warn')
+        
+        log_data = {
+            "context": "Fraud service",
+            "level": "WARN",
+            "message": {
+                "amount": amount,
+                "client_phone": client_phone,
+                "event": "limite quotidienne dépassée"
+            }
+        }
+
+        # Envoyer le log JSON à CloudWatch
+        log_to_cloudwatch(json.dumps(log_data))
+        
         return jsonify({"error": "Daily limit exceeded"}), 400
 
     if not check_monthly_limit(client_phone, amount):
-        logger.warning(f"Limite mensuelle dépassée pour le numéro {client_phone}.")
+        #logger.warning(f"Limite mensuelle dépassée pour le numéro {client_phone}.")
         #log_to_cloudwatch(f"Limite mensuelle dépassée pour le numéro {client_phone}.", level='warn')
+        
+        log_data = {
+            "context": "Fraud service",
+            "level": "WARN",
+            "message": {
+                "amount": amount,
+                "client_phone": client_phone,
+                "event": "limite mensuelle dépassée"
+            }
+        }
+
+        # Envoyer le log JSON à CloudWatch
+        log_to_cloudwatch(json.dumps(log_data))
+        
         return jsonify({"error": "Monthly limit exceeded"}), 400
 
     # Traiter la transaction
     return process_transaction(data)
 
 def process_transaction(data):
-    logger.info(f"Processing transaction from {data['client_phone']}.")
+    #logger.info(f"Processing transaction from {data['client_phone']}.")
     #log_to_cloudwatch(f"Processing transaction from {data['client_phone']}.", level='info')
+    
+    log_data = {
+        "context": "Fraud service",
+        "level": "info",
+        "message": {
+            "amount": data['amount'],
+            "client_phone": data['client_phone'],
+            "event": "traitement de la transaction"
+        }
+    }
+
+    # Envoyer le log JSON à CloudWatch
+    log_to_cloudwatch(json.dumps(log_data))
+    
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
@@ -114,8 +216,22 @@ def process_transaction(data):
     conn.commit()
     cur.close()
     conn.close()
-    logger.info(f"Transaction enregistrée pour le numéro {data['client_phone']}.")
+    #logger.info(f"Transaction enregistrée pour le numéro {data['client_phone']}.")
     #log_to_cloudwatch(f"Transaction enregistrée pour le numéro {data['client_phone']}.", level='info')
+    
+    log_data = {
+        "context": "Fraud service",
+        "level": "info",
+        "message": {
+            "amount": data['amount'],
+            "client_phone": data['client_phone'],
+            "event": "transaction enregistree"
+        }
+    }
+
+    # Envoyer le log JSON à CloudWatch
+    log_to_cloudwatch(json.dumps(log_data))
+    
     return jsonify({"message": "Transaction created successfully"}), 201
 
 def check_daily_limit(client_phone, amount):
@@ -192,8 +308,20 @@ def blacklist_number(client_phone):
     conn.commit()
     cur.close()
     conn.close()
-    logger.warning(f"Numéro {client_phone} blacklisté pendant 30 minutes.")
+    #logger.warning(f"Numéro {client_phone} blacklisté pendant 30 minutes.")
     #log_to_cloudwatch(f"Numéro {client_phone} blacklisté pendant 30 minutes.", level='warn')
+    
+    log_data = {
+        "context": "Fraud service",
+        "level": "info",
+        "message": {
+            "client_phone": client_phone,
+            "event": "numéro blacklisté pendant 30 minutes"
+        }
+    }
+
+    # Envoyer le log JSON à CloudWatch
+    log_to_cloudwatch(json.dumps(log_data))
 
 
 if __name__ == '__main__':
