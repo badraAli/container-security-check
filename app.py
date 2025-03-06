@@ -56,8 +56,16 @@ def log_to_cloudwatch(message):
     )
 
 # Configuration des logs
+log_dir = "/var/logs/app"
+log_file = f"{log_dir}/app.log"
 
-log_file = "/var/logs/app/app.log"
+# Vérifier si le répertoire existe, sinon le créer
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+# Vérifier si le fichier existe, sinon le créer
+if not os.path.exists(log_file):
+    open(log_file, "w").close()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', filename=log_file, filemode='a')
 logger = logging.getLogger(__name__)
