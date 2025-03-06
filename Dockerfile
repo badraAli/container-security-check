@@ -1,5 +1,7 @@
 FROM python:3.9-slim
 
+RUN mkdir -p /var/logs/app && touch /var/logs/app/app.log && chmod 666 /var/logs/app/app.log
+
 WORKDIR /app
 
 COPY requirements.txt .

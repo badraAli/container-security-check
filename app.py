@@ -56,7 +56,10 @@ def log_to_cloudwatch(message):
     )
 
 # Configuration des logs
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+log_file = "/var/logs/app/app.log"
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', filename=log_file, filemode='a')
 logger = logging.getLogger(__name__)
 
 def get_db_connection():
@@ -83,6 +86,8 @@ def create_transaction():
     # Envoyer le log JSON à CloudWatch
     log_to_cloudwatch(json.dumps(log_data))
     
+    logger.info(json.dumps(log_data))
+    
     
     #logger.info(f"Requête reçue : {data}")
     #log_to_cloudwatch(f"Requête reçue : {data}", level='info')
@@ -105,6 +110,8 @@ def create_transaction():
         # Envoyer le log JSON à CloudWatch
         log_to_cloudwatch(json.dumps(log_data))
         
+        logger.info(json.dumps(log_data))
+        
         return process_transaction(data)
 
     # Vérifier si le numéro est blacklisté
@@ -125,6 +132,8 @@ def create_transaction():
         # Envoyer le log JSON à CloudWatch
         log_to_cloudwatch(json.dumps(log_data))
         
+        logger.warning(json.dumps(log_data))
+        
         return jsonify({"error": "Numéro blacklisté pendant 30 minutes"}), 403
 
     # Vérifier le nombre de requêtes dans les 5 dernières minutes
@@ -144,6 +153,8 @@ def create_transaction():
 
         # Envoyer le log JSON à CloudWatch
         log_to_cloudwatch(json.dumps(log_data))
+        
+        logger.warning(json.dumps(log_data))
         
         blacklist_number(client_phone)
         return jsonify({"error": "Limite de 3 requêtes en 5 minutes atteinte, numéro blacklisté pendant 30 minutes"}), 429
@@ -166,6 +177,8 @@ def create_transaction():
         # Envoyer le log JSON à CloudWatch
         log_to_cloudwatch(json.dumps(log_data))
         
+        logger.warning(json.dumps(log_data))
+        
         return jsonify({"error": "Daily limit exceeded"}), 400
 
     if not check_monthly_limit(client_phone, amount):
@@ -184,6 +197,8 @@ def create_transaction():
 
         # Envoyer le log JSON à CloudWatch
         log_to_cloudwatch(json.dumps(log_data))
+        
+        logger.warning(json.dumps(log_data))
         
         return jsonify({"error": "Monthly limit exceeded"}), 400
 
@@ -206,6 +221,8 @@ def process_transaction(data):
 
     # Envoyer le log JSON à CloudWatch
     log_to_cloudwatch(json.dumps(log_data))
+    
+    logger.info(json.dumps(log_data))
     
     conn = get_db_connection()
     cur = conn.cursor()
@@ -231,6 +248,8 @@ def process_transaction(data):
 
     # Envoyer le log JSON à CloudWatch
     log_to_cloudwatch(json.dumps(log_data))
+    
+    logger.info(json.dumps(log_data))
     
     return jsonify({"message": "Transaction created successfully"}), 201
 
@@ -322,6 +341,8 @@ def blacklist_number(client_phone):
 
     # Envoyer le log JSON à CloudWatch
     log_to_cloudwatch(json.dumps(log_data))
+    
+    logger.info(json.dumps(log_data))
 
 
 if __name__ == '__main__':
