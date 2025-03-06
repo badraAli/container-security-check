@@ -32,7 +32,7 @@ services:
     build: .
     container_name: security_app
     ports:
-      - "5000:5000"
+      - "5556:5000"
     environment:
       DATABASE_NAME: api_fraude_db
       DATABASE_USER: postgres
