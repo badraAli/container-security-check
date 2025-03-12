@@ -32,9 +32,7 @@ services:
     build: .
     container_name: security_app
     ports:
-      - "5556:5000"
-    volumes:
-      - logs_data:/var/logs/app
+      - "5000:5000"
     environment:
       DATABASE_NAME: api_fraude_db
       DATABASE_USER: postgres
@@ -48,7 +46,6 @@ services:
 
 volumes:
   postgres_data:
-  logs_data:
 
 networks:
   security_app_network:

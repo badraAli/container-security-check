@@ -330,3 +330,21 @@ Placez le fichier nginx-flask-app.conf sur le serveur dans /etc/nginx/sites-avai
 sudo ln -s /etc/nginx/sites-available/nginx-flask-app.conf /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
+
+
+---------------------------------------------
+  app:
+    build: .
+    container_name: security_app
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_NAME: api_fraude_db
+      DATABASE_USER: postgres
+      PASSWORD: password
+      HOST: postgres
+      PORT: 5432
+    depends_on:
+      - postgres
+    networks:
+      - security_app_network
